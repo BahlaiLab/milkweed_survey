@@ -1,0 +1,26 @@
+Site,Timing,Method,Milkweed_proc,Habitat_proc,Total_time,Labor_cost,Total_cost
+Solar (MN),Early Season,Site al,0:00:00,0:00:00,1:42:56,48.5,80.12
+Solar (MN),Early Season,Transect plot,0:00:00,0:00:00,1:26:24,40.71,67.25
+Solar (MN),Early Season,Square plot,0:00:00,0:00:00,1:48:47,51.26,84.67
+Solar (MN),Early Season,CCAA,0:00:00,0:00:00,0:13:21,6.29,10.39
+Solar (MN),Early Season,Machine learning,0:23:16,0:42:39,0:59:38,28.1,46.41
+Transmission (MN),Early Season,Site al,0:00:00,0:00:00,2:34:32,72.81,120.81
+Transmission (MN),Early Season,Transect plot,0:00:00,0:00:00,0:40:40,19.16,31.65
+Transmission (MN),Early Season,Square plot,0:00:00,0:00:00,1:06:39,31.4,51.88
+Transmission (MN),Early Season,CCAA,0:00:00,0:00:00,0:09:43,4.58,7.56
+Transmission (MN),Early Season,Machine learning,0:22:46,0:41:09,1:01:13,28.84,47.65
+Gas (OH),Late season,Site al,0:00:00,0:00:00,0:15:44,7.41,12.25
+Gas (OH),Late season,Transect plot,0:00:00,0:00:00,0:28:56,13.63,22.52
+Gas (OH),Late season,Square plot,0:00:00,0:00:00,1:13:30,34.63,57.21
+Gas (OH),Late season,CCAA,0:00:00,0:00:00,0:04:27,2.1,3.46
+Gas (OH),Late season,Machine learning,0:23:11,0:43:21,1:07:51,31.97,52.81
+Distribution (OH),Late season,Site al,0:00:00,0:00:00,1:52:59,53.23,87.94
+Distribution (OH),Late season,Transect plot,0:00:00,0:00:00,0:56:03,26.41,43.63
+Distribution (OH),Late season,Square plot,0:00:00,0:00:00,1:41:00,47.59,78.61
+Distribution (OH),Late season,CCAA,0:00:00,0:00:00,0:08:11,3.86,6.37
+Distribution (OH),Late season,Machine learning,0:23:51,0:41:11,0:58:23,27.51,45.44
+DOT (OH),Late season,Site al,0:00:00,0:00:00,2:14:32,63.39,104.71
+DOT (OH),Late season,Transect plot,0:00:00,0:00:00,1:11:51,33.85,55.92
+DOT (OH),Late season,Square plot,0:00:00,0:00:00,1:37:38,46,75.99
+DOT (OH),Late season,CCAA,0:00:00,0:00:00,0:27:18,12.86,21.25
+DOT (OH),Late season,Machine learning,0:26:13,0:42:39,1:05:14,30.74,50.77

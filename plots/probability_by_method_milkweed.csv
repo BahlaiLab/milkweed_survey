@@ -1,0 +1,26 @@
+"Site","Method","p_over","p_under","p_within","n_plots","mean_MW","sd_MW"
+"Distribution (OH)","CCAA",0,1,0,1,0,NA
+"Distribution (OH)","Machine learning",0,0.5,0.5,10,43.7923924717288,67.2989626930033
+"Distribution (OH)","Square plot",0.1,0.9,0,10,300,948.683298050514
+"Distribution (OH)","Transect plot",0.1,0.9,0,10,125,395.284707521047
+"DOT (OH)","CCAA",1,0,0,1,31061.6929698709,NA
+"DOT (OH)","Machine learning",0,0.7,0.3,10,703.549911840889,883.425677955035
+"DOT (OH)","Square plot",0.2,0.4,0.4,10,2666.66666666667,3731.74569416593
+"DOT (OH)","Transect plot",0.4,0.5,0.1,10,9000,14371.0743431999
+"Gas (OH)","CCAA",0,0,1,1,0,NA
+"Gas (OH)","Machine learning",0,0,1,10,0,0
+"Gas (OH)","Square plot",0.1,0,0.9,10,200,632.455532033676
+"Gas (OH)","Transect plot",0,0,1,10,0,0
+"Solar (MN)","CCAA",1,0,0,1,430.416068866571,NA
+"Solar (MN)","Machine learning",0,0.9,0.1,10,68.1565448218962,73.6126267609924
+"Solar (MN)","Square plot",0.5,0.5,0,10,600,699.205898780101
+"Solar (MN)","Transect plot",0.3,0.7,0,10,1125,2161.05041331499
+"Transmission (MN)","CCAA",0,0,1,1,286.944045911047,NA
+"Transmission (MN)","Machine learning",0,0.4,0.6,10,450.433158022701,433.854669737223
+"Transmission (MN)","Square plot",0.4,0.4,0.2,10,1700,2263.23269290239
+"Transmission (MN)","Transect plot",0.3,0.6,0.1,10,1375,2389.93839995
+"Distribution (OH)","Site al",NA,NA,NA,10,119.890648242274,167.581950620258
+"DOT (OH)","Site al",NA,NA,NA,10,2884.55463854764,3337.64343287622
+"Gas (OH)","Site al",NA,NA,NA,10,7.17437313914697,15.1249066024244
+"Solar (MN)","Site al",NA,NA,NA,10,242.13509344621,89.1800521946186
+"Transmission (MN)","Site al",NA,NA,NA,10,984.042893521184,1060.20974738051
