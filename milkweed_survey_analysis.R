@@ -1657,8 +1657,8 @@ pairs_ordered <- purrr::map(
 library(rlang)
 
 plots <- lapply(pairs_ordered, function(vars) {
-  xvar <- vars[1]
-  yvar <- vars[2]
+  xvar <- vars[2]
+  yvar <- vars[1]
   
   ggplot(mw_wide, aes(x = !!sym(xvar), y = !!sym(yvar), color = Site)) +  #mod to accept column names with spaces (from reshaping methods column)
     geom_point(size = 2, alpha = 0.7) +
@@ -1725,15 +1725,15 @@ get_lm_stats_safe <- function(df, xvar, yvar) {
 
 #Annotate each plot
 plots_annotated <- lapply(pairs_ordered, function(vars) {
-  xvar <- vars[1]
-  yvar <- vars[2]
+  xvar <- vars[2]
+  yvar <- vars[1]
   
   stats <- get_lm_stats_safe(mw_wide, xvar, yvar)
   slope <- round(stats$slope, 2)
   r2 <- round(stats$r2, 2)
   
   ggplot(mw_wide, aes(x = .data[[xvar]], y = .data[[yvar]], color = Site)) +
-    geom_point(size = 2, alpha = 1) +
+    geom_point(size = 2, alpha = 1, pch=4) +
     geom_smooth(method = "lm", color = "darkgrey", se = FALSE, lty="dotted") +
     theme_minimal() +
     scale_x_continuous(labels = function(x) x / 1000) +
