@@ -9,10 +9,10 @@
 # cost.csv
 # 1. separated time/cost data into separate tabs, cost data was reduced down to total time and cost figures
 #(1 obs) by method, timing and site
-# 2.renamed columns to R-friendly variable names, removes special characters and units
+# 2. renamed columns to R-friendly variable names, removes special characters and units
 # 3. resolved typos (Transmission site square plot and CCA had total data entered under Habitat_proc)
-# 4. NAs can be treated as true zeroes (because zero time was partioned to that activity) so sub 0 for NA
-# 5. Assume missing vaules are zeros as well because these data have a total, so sub zeroes
+# 4. NAs can be treated as true zeroes (because zero time was partitioned to that activity) so sub 0 for NA
+# 5. Assume missing values are zeros as well because these data have a total, so sub zeroes
 
 #survey.csv
 # 1.deleted data check column and timing data because that is compiled at the method level
@@ -70,6 +70,59 @@ survey_combined <- survey %>%
 #check on data structure
 summary(survey_combined)
 
+#create canonical method order:
+
+method_levels <- c(
+  "Site al",
+  "Transect plot",
+  "Square plot",
+  "CCAA",
+  "Machine learning"
+)
+
+survey_combined <- survey_combined %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  )
+
+#create a color palette to use throughout, connecting methods to color
+
+library(wesanderson)
+library(ggplot2)
+
+life_aquatic_pal <- wes_palette(
+  "FantasticFox1", #sadly life aquatic isn't giving enough contrast
+  n = length(method_levels),
+  type = "discrete"
+)
+
+names(life_aquatic_pal) <- method_levels
+
+#create palettes
+
+scale_method_color_full <- scale_color_manual(
+  values = life_aquatic_pal,
+  drop = FALSE
+)
+
+scale_method_fill_full <- scale_fill_manual(
+  values = life_aquatic_pal,
+  drop = FALSE
+)
+
+#for when we exclude Site al
+
+life_aquatic_no_siteal <- life_aquatic_pal[names(life_aquatic_pal) != "Site al"]
+
+scale_method_color_no_siteal <- scale_color_manual(
+  values = life_aquatic_no_siteal,
+  drop = FALSE
+)
+
+scale_method_fill_no_siteal <- scale_fill_manual(
+  values = life_aquatic_no_siteal,
+  drop = FALSE
+)
 #now let's create a conversion of estimated MW per hectare for all methods
 
 
@@ -248,12 +301,8 @@ med_lines <- survey_diff_abs %>%
 library(scales)
 
 violin_difference<-ggplot(survey_diff_abs %>% filter(Method != "Site al"),
-       aes(x = Method, y = MW_density_diff)) +
+       aes(x = Method, y = MW_density_diff, fill=Method)) +
   
-  # Violin plots
-  geom_violin(trim = FALSE, na.rm = TRUE) +
-  
-  # Background: Site al mean ± SE
   geom_rect(
     data = siteal_stats,
     aes(
@@ -263,9 +312,13 @@ violin_difference<-ggplot(survey_diff_abs %>% filter(Method != "Site al"),
       ymax = 0 + siteal_sd
     ),
     inherit.aes = FALSE,
-    fill = "grey80",
+    fill = "grey10",
     alpha = 0.3
   ) +
+  # Violin plots
+  geom_violin(trim = FALSE, na.rm = TRUE) +
+  # Background: Site al mean ± SE
+
   
   # Red mean ticks per Method × Site
   geom_segment(
@@ -276,10 +329,14 @@ violin_difference<-ggplot(survey_diff_abs %>% filter(Method != "Site al"),
       y = MW_density_diff_mean,
       yend = MW_density_diff_mean
     ),
-    color = "red",
+    color = "slateblue4",
     linewidth = 1
   ) +
-  
+  # life Aquatic palette (starting at Transect plot)
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  ) +
   # Horizontal line at zero
   geom_hline(yintercept = 0, linetype = "dashed") +
   
@@ -310,7 +367,7 @@ violin_difference<-ggplot(survey_diff_abs %>% filter(Method != "Site al"),
   labs(
     x = "Method",
     y = expression("Absolute difference from Siteal MW density (" * 10^6 * " stems)")
-  )
+  )+ theme(legend.position = "none")
 
 violin_difference
 
@@ -555,13 +612,38 @@ plot_data_letters <- plot_data %>%
 #adjust position with error bars
 plot_data_letters <- plot_data_letters %>%
   mutate(
-    y_pos = if_else(is.na(se_MW), (1.2*mean_MW+1), mean_MW + (1.5*se_MW+1))
+    y_pos = if_else(is.na(se_MW), (1.01*mean_MW+150), mean_MW + (se_MW+150))
   )
 
-#  Plot pseudo-log bar chart with SE and letters
+# force plotting order
+plot_data_letters <- plot_data_letters %>%
+  mutate(
+    Method = factor(
+      Method,
+      levels = c(
+        "Site al",
+        "Transect plot",
+        "Square plot",
+        "CCAA",
+        "Machine learning"
+      )
+    )
+  )
 
-milkweedbar<-ggplot(plot_data_letters, aes(x = Site, y = mean_MW, fill = Method)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+
+
+#  Plot  bar chart with SE and letters
+
+
+
+milkweedbar <- ggplot(
+  plot_data_letters,
+  aes(x = Site, y = mean_MW, fill = Method)
+) +
+  geom_col(
+    position = position_dodge(width = 0.8),
+    width = 0.7
+  ) +
   geom_errorbar(
     aes(ymin = mean_MW - se_MW, ymax = mean_MW + se_MW),
     width = 0.2,
@@ -570,11 +652,17 @@ milkweedbar<-ggplot(plot_data_letters, aes(x = Site, y = mean_MW, fill = Method)
   geom_text(
     aes(y = y_pos, label = LETTERS),
     position = position_dodge(width = 0.8),
-    vjust = 0  # top-align letters at y_pos
+    vjust = 0
   ) +
   scale_y_continuous(
     trans = pseudo_log_trans(base = 10),
     labels = label_number()
+  ) +
+  scale_fill_manual(
+    values = life_aquatic_pal,
+    breaks = names(life_aquatic_pal),
+    limits = names(life_aquatic_pal),
+    drop = FALSE
   ) +
   theme_bw() +
   labs(
@@ -582,12 +670,78 @@ milkweedbar<-ggplot(plot_data_letters, aes(x = Site, y = mean_MW, fill = Method)
     y = "Mean MW density ± SE",
     fill = "Method"
   ) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
 milkweedbar
 
-#save to pdf
-pdf("plots/milkweedbymethodbar.pdf", height=6, width=8)
-milkweedbar
+#Replot with broken y axis instead
+library(ggbreak)
+
+break_lower <- 4500
+break_upper <- 7000
+
+milkweedbar_broken <- ggplot(
+  plot_data_letters,
+  aes(x = Site, y = mean_MW, fill = Method)
+) +
+  geom_col(
+    position = position_dodge(width = 0.8),
+    width = 0.7
+  ) +
+  geom_errorbar(
+    aes(ymin = mean_MW - se_MW, ymax = mean_MW + se_MW),
+    width = 0.2,
+    position = position_dodge(width = 0.8),
+    color = "grey30"
+  ) +
+  geom_text(
+    aes(y = y_pos, label = LETTERS),
+    position = position_dodge(width = 0.8),
+    vjust = 0
+  ) +
+  
+  # broken y-axis 
+  scale_y_break(
+    c(break_lower, break_upper),
+    expand = expansion(mult = c(0, 0.10)),
+    scales = 0.5     # relative compression of upper range
+  ) +
+  
+  scale_fill_manual(
+    values = life_aquatic_pal,
+    breaks = names(life_aquatic_pal),
+    limits = names(life_aquatic_pal),
+    drop = FALSE
+  ) +
+  guides(fill = guide_legend(order = 1)) +
+  
+  theme_bw() +
+  labs(
+    x = "Site",
+    y = "Mean MW density ± SE",
+    fill = "Method"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+milkweedbar_broken
+
+library(grid)
+
+#this plot is being extremely stubborn to PDF so I'm going to smash it with some stuff
+milkweedbar_broken <- milkweedbar_broken +
+  theme(plot.margin = margin(5, 5, 10, 5))  # top, right, bottom, left
+
+# Export to single-page PDF
+pdf("plots/milkweedbymethodbar.pdf", width = 8, height = 6, onefile = FALSE)
+
+# Use grid.draw on the ggplot object (do NOT pre-build it!)
+grid.draw(milkweedbar_broken)
+
 dev.off()
 ###################
 # now let's do the same ANOVA type analysis on floral, woody, grass, broadleaf
@@ -713,33 +867,56 @@ all_tests <- bind_rows(pairwise_tests, single_sample_tests)
 
 #  Generate compact letters per Site
 
+#first get pushy about method levels again
+method_levels <- c(
+  "Transect plot",
+  "Square plot",
+  "CCAA",
+  "Machine learning"
+)
+
+
 letter_list <- list()
-for(s in unique(all_tests$Site)) {
+
+for (s in unique(all_tests$Site)) {
   
-  df_site <- all_tests %>% filter(Site == s)
-  methods <- unique(c(df_site$group1, df_site$group2))
+  df_site <- all_tests %>% 
+    filter(Site == s) %>%
+    filter(group1 %in% method_levels,
+           group2 %in% method_levels)
   
-  pmat <- matrix(1, nrow = length(methods), ncol = length(methods),
-                 dimnames = list(methods, methods))
-  for(i in seq_len(nrow(df_site))) {
+  # force consistent ordering
+  methods <- method_levels[method_levels %in%
+                             unique(c(df_site$group1, df_site$group2))]
+  
+  pmat <- matrix(
+    1,
+    nrow = length(methods),
+    ncol = length(methods),
+    dimnames = list(methods, methods)
+  )
+  
+  for (i in seq_len(nrow(df_site))) {
     g1 <- df_site$group1[i]
     g2 <- df_site$group2[i]
     pmat[g1, g2] <- df_site$p.adj[i]
     pmat[g2, g1] <- df_site$p.adj[i]
   }
+  
   pmat[is.na(pmat)] <- 1
   
   letters <- multcompLetters(pmat, threshold = 0.05)$Letters
   
   letter_list[[s]] <- data.frame(
-    Site = s,
-    Method = names(letters),
+    Site   = s,
+    Method = factor(names(letters), levels = method_levels),
     LETTERS = unname(letters),
     stringsAsFactors = FALSE
   )
 }
 
 letter_df <- bind_rows(letter_list)
+
 
 
 # Compute Q3 for letter placement- adjusted to 95th percentile
@@ -750,16 +927,18 @@ plot_data <- survey_filtered %>%
     Q3_floral = quantile(floral, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  ) %>%
   left_join(letter_df, by = c("Site", "Method")) %>%
   mutate(
-    y_pos = Q3_floral+2  # slightly above box top
+    y_pos = Q3_floral + 2
   )
-
 
 # Boxplot with jitter and Tukey letters
 
 floralbox<-ggplot(survey_filtered, aes(x = Site, y = floral, fill = Method)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.5, position = position_dodge2(width = 0.8)) +
+  geom_boxplot(outlier.shape = NA, alpha = 1, position = position_dodge2(width = 0.8)) +
   #geom_jitter(aes(color = Method),
   #            position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8),
   #            size = 1.5, alpha = 0.8) +
@@ -769,6 +948,10 @@ floralbox<-ggplot(survey_filtered, aes(x = Site, y = floral, fill = Method)) +
     position = position_dodge2(width = 0.8),
     vjust = 0
   ) +
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  )+
   theme_bw() +
   labs(
     x = "Site",
@@ -836,26 +1019,39 @@ all_tests <- bind_rows(pairwise_tests, single_sample_tests)
 #  Generate compact letters per Site
 
 letter_list <- list()
-for(s in unique(all_tests$Site)) {
+
+for (s in unique(all_tests$Site)) {
   
-  df_site <- all_tests %>% filter(Site == s)
-  methods <- unique(c(df_site$group1, df_site$group2))
+  df_site <- all_tests %>% 
+    filter(Site == s) %>%
+    filter(group1 %in% method_levels,
+           group2 %in% method_levels)
   
-  pmat <- matrix(1, nrow = length(methods), ncol = length(methods),
-                 dimnames = list(methods, methods))
-  for(i in seq_len(nrow(df_site))) {
+  # force consistent ordering
+  methods <- method_levels[method_levels %in%
+                             unique(c(df_site$group1, df_site$group2))]
+  
+  pmat <- matrix(
+    1,
+    nrow = length(methods),
+    ncol = length(methods),
+    dimnames = list(methods, methods)
+  )
+  
+  for (i in seq_len(nrow(df_site))) {
     g1 <- df_site$group1[i]
     g2 <- df_site$group2[i]
     pmat[g1, g2] <- df_site$p.adj[i]
     pmat[g2, g1] <- df_site$p.adj[i]
   }
+  
   pmat[is.na(pmat)] <- 1
   
   letters <- multcompLetters(pmat, threshold = 0.05)$Letters
   
   letter_list[[s]] <- data.frame(
-    Site = s,
-    Method = names(letters),
+    Site   = s,
+    Method = factor(names(letters), levels = method_levels),
     LETTERS = unname(letters),
     stringsAsFactors = FALSE
   )
@@ -864,7 +1060,7 @@ for(s in unique(all_tests$Site)) {
 letter_df <- bind_rows(letter_list)
 
 
-# Compute Q3 for letter placement
+# Compute Q3 for letter placement- adjusted to 95th percentile
 
 plot_data <- survey_filtered %>%
   group_by(Site, Method) %>%
@@ -872,16 +1068,18 @@ plot_data <- survey_filtered %>%
     Q3_woody = quantile(woody, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  ) %>%
   left_join(letter_df, by = c("Site", "Method")) %>%
   mutate(
-    y_pos = Q3_woody+2  # slightly above box top
+    y_pos = Q3_woody + 2
   )
-
 
 # Boxplot with jitter and Tukey letters
 
 woodybox<-ggplot(survey_filtered, aes(x = Site, y = woody, fill = Method)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.5, position = position_dodge2(width = 0.8)) +
+  geom_boxplot(outlier.shape = NA, alpha = 1, position = position_dodge2(width = 0.8)) +
   # geom_jitter(aes(color = Method),
   #             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8),
   #             size = 1.5, alpha = 0.8) +
@@ -891,6 +1089,10 @@ woodybox<-ggplot(survey_filtered, aes(x = Site, y = woody, fill = Method)) +
     position = position_dodge2(width = 0.8),
     vjust = 0
   ) +
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  )+
   theme_bw() +
   labs(
     x = "Site",
@@ -956,27 +1158,41 @@ all_tests <- bind_rows(pairwise_tests, single_sample_tests)
 
 #  Generate compact letters per Site
 
+
 letter_list <- list()
-for(s in unique(all_tests$Site)) {
+
+for (s in unique(all_tests$Site)) {
   
-  df_site <- all_tests %>% filter(Site == s)
-  methods <- unique(c(df_site$group1, df_site$group2))
+  df_site <- all_tests %>% 
+    filter(Site == s) %>%
+    filter(group1 %in% method_levels,
+           group2 %in% method_levels)
   
-  pmat <- matrix(1, nrow = length(methods), ncol = length(methods),
-                 dimnames = list(methods, methods))
-  for(i in seq_len(nrow(df_site))) {
+  # force consistent ordering
+  methods <- method_levels[method_levels %in%
+                             unique(c(df_site$group1, df_site$group2))]
+  
+  pmat <- matrix(
+    1,
+    nrow = length(methods),
+    ncol = length(methods),
+    dimnames = list(methods, methods)
+  )
+  
+  for (i in seq_len(nrow(df_site))) {
     g1 <- df_site$group1[i]
     g2 <- df_site$group2[i]
     pmat[g1, g2] <- df_site$p.adj[i]
     pmat[g2, g1] <- df_site$p.adj[i]
   }
+  
   pmat[is.na(pmat)] <- 1
   
   letters <- multcompLetters(pmat, threshold = 0.05)$Letters
   
   letter_list[[s]] <- data.frame(
-    Site = s,
-    Method = names(letters),
+    Site   = s,
+    Method = factor(names(letters), levels = method_levels),
     LETTERS = unname(letters),
     stringsAsFactors = FALSE
   )
@@ -985,7 +1201,8 @@ for(s in unique(all_tests$Site)) {
 letter_df <- bind_rows(letter_list)
 
 
-# Compute Q3 for letter placement
+
+# Compute Q3 for letter placement- adjusted to 95th percentile
 
 plot_data <- survey_filtered %>%
   group_by(Site, Method) %>%
@@ -993,16 +1210,19 @@ plot_data <- survey_filtered %>%
     Q3_grass = quantile(grass, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  ) %>%
   left_join(letter_df, by = c("Site", "Method")) %>%
   mutate(
-    y_pos = Q3_grass+2  # slightly above box top
+    y_pos = Q3_grass + 2
   )
 
 
 # Boxplot with jitter and Tukey letters
 
 grassbox<-ggplot(survey_filtered, aes(x = Site, y = grass, fill = Method)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.5, position = position_dodge2(width = 0.8)) +
+  geom_boxplot(outlier.shape = NA, alpha = 1, position = position_dodge2(width = 0.8)) +
   # geom_jitter(aes(color = Method),
   #             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8),
   #             size = 1.5, alpha = 0.8) +
@@ -1012,6 +1232,10 @@ grassbox<-ggplot(survey_filtered, aes(x = Site, y = grass, fill = Method)) +
     position = position_dodge2(width = 0.8),
     vjust = 0
   ) +
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  )+
   theme_bw() +
   labs(
     x = "Site",
@@ -1080,27 +1304,41 @@ all_tests <- bind_rows(pairwise_tests, single_sample_tests)
 
 #  Generate compact letters per Site
 
+
 letter_list <- list()
-for(s in unique(all_tests$Site)) {
+
+for (s in unique(all_tests$Site)) {
   
-  df_site <- all_tests %>% filter(Site == s)
-  methods <- unique(c(df_site$group1, df_site$group2))
+  df_site <- all_tests %>% 
+    filter(Site == s) %>%
+    filter(group1 %in% method_levels,
+           group2 %in% method_levels)
   
-  pmat <- matrix(1, nrow = length(methods), ncol = length(methods),
-                 dimnames = list(methods, methods))
-  for(i in seq_len(nrow(df_site))) {
+  # force consistent ordering
+  methods <- method_levels[method_levels %in%
+                             unique(c(df_site$group1, df_site$group2))]
+  
+  pmat <- matrix(
+    1,
+    nrow = length(methods),
+    ncol = length(methods),
+    dimnames = list(methods, methods)
+  )
+  
+  for (i in seq_len(nrow(df_site))) {
     g1 <- df_site$group1[i]
     g2 <- df_site$group2[i]
     pmat[g1, g2] <- df_site$p.adj[i]
     pmat[g2, g1] <- df_site$p.adj[i]
   }
+  
   pmat[is.na(pmat)] <- 1
   
   letters <- multcompLetters(pmat, threshold = 0.05)$Letters
   
   letter_list[[s]] <- data.frame(
-    Site = s,
-    Method = names(letters),
+    Site   = s,
+    Method = factor(names(letters), levels = method_levels),
     LETTERS = unname(letters),
     stringsAsFactors = FALSE
   )
@@ -1109,7 +1347,8 @@ for(s in unique(all_tests$Site)) {
 letter_df <- bind_rows(letter_list)
 
 
-# Compute Q3 for letter placement
+
+# Compute Q3 for letter placement- adjusted to 95th percentile
 
 plot_data <- survey_filtered %>%
   group_by(Site, Method) %>%
@@ -1117,16 +1356,19 @@ plot_data <- survey_filtered %>%
     Q3_broadleaf = quantile(broadleaf, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  ) %>%
   left_join(letter_df, by = c("Site", "Method")) %>%
   mutate(
-    y_pos = Q3_broadleaf+2  # slightly above box top
+    y_pos = Q3_broadleaf + 2
   )
 
 
 # Boxplot with jitter and Tukey letters
 
 broadleafbox<-ggplot(survey_filtered, aes(x = Site, y = broadleaf, fill = Method)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.5, position = position_dodge2(width = 0.8)) +
+  geom_boxplot(outlier.shape = NA, alpha = 1, position = position_dodge2(width = 0.8)) +
   # geom_jitter(aes(color = Method),
   #             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8),
   #             size = 1.5, alpha = 0.8) +
@@ -1136,6 +1378,10 @@ broadleafbox<-ggplot(survey_filtered, aes(x = Site, y = broadleaf, fill = Method
     position = position_dodge2(width = 0.8),
     vjust = 0
   ) +
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  )+
   theme_bw() +
   labs(
     x = "Site",
@@ -1202,27 +1448,41 @@ all_tests <- bind_rows(pairwise_tests, single_sample_tests)
 
 #  Generate compact letters per Site
 
+
 letter_list <- list()
-for(s in unique(all_tests$Site)) {
+
+for (s in unique(all_tests$Site)) {
   
-  df_site <- all_tests %>% filter(Site == s)
-  methods <- unique(c(df_site$group1, df_site$group2))
+  df_site <- all_tests %>% 
+    filter(Site == s) %>%
+    filter(group1 %in% method_levels,
+           group2 %in% method_levels)
   
-  pmat <- matrix(1, nrow = length(methods), ncol = length(methods),
-                 dimnames = list(methods, methods))
-  for(i in seq_len(nrow(df_site))) {
+  # force consistent ordering
+  methods <- method_levels[method_levels %in%
+                             unique(c(df_site$group1, df_site$group2))]
+  
+  pmat <- matrix(
+    1,
+    nrow = length(methods),
+    ncol = length(methods),
+    dimnames = list(methods, methods)
+  )
+  
+  for (i in seq_len(nrow(df_site))) {
     g1 <- df_site$group1[i]
     g2 <- df_site$group2[i]
     pmat[g1, g2] <- df_site$p.adj[i]
     pmat[g2, g1] <- df_site$p.adj[i]
   }
+  
   pmat[is.na(pmat)] <- 1
   
   letters <- multcompLetters(pmat, threshold = 0.05)$Letters
   
   letter_list[[s]] <- data.frame(
-    Site = s,
-    Method = names(letters),
+    Site   = s,
+    Method = factor(names(letters), levels = method_levels),
     LETTERS = unname(letters),
     stringsAsFactors = FALSE
   )
@@ -1231,7 +1491,8 @@ for(s in unique(all_tests$Site)) {
 letter_df <- bind_rows(letter_list)
 
 
-# Compute Q3 for letter placement
+
+# Compute Q3 for letter placement- adjusted to 95th percentile
 
 plot_data <- survey_filtered %>%
   group_by(Site, Method) %>%
@@ -1239,16 +1500,20 @@ plot_data <- survey_filtered %>%
     Q3_bare = quantile(bare, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) %>%
+  mutate(
+    Method = factor(Method, levels = method_levels)
+  ) %>%
   left_join(letter_df, by = c("Site", "Method")) %>%
   mutate(
-    y_pos = Q3_bare+2  # slightly above box top
+    y_pos = Q3_bare + 2
   )
+
 
 
 # Boxplot with jitter and Tukey letters
 
 barebox<-ggplot(survey_filtered, aes(x = Site, y = bare, fill = Method)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.5, position = position_dodge2(width = 0.8)) +
+  geom_boxplot(outlier.shape = NA, alpha = 1, position = position_dodge2(width = 0.8)) +
   # geom_jitter(aes(color = Method),
   #             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8),
   #             size = 1.5, alpha = 0.8) +
@@ -1258,6 +1523,11 @@ barebox<-ggplot(survey_filtered, aes(x = Site, y = bare, fill = Method)) +
     position = position_dodge2(width = 0.8),
     vjust = 0
   ) +
+  
+  scale_fill_manual(
+    values = life_aquatic_no_siteal,
+    drop = FALSE
+  )+
   theme_bw() +
   labs(
     x = "Site",
@@ -1345,20 +1615,48 @@ dev.off()
 #let's do a scatterplot matrix for pairwise comparisons of methods on  our response variables, 
 #using plot*site as the unit, colored by Site, and with trendlines.
 
+#a bit of a dance to order the figures
+method_levels <- c(
+  "Site al",
+  "Transect plot",
+  "Square plot",
+  "CCAA",
+  "Machine learning"
+)
+
+
 # Pivot data so each method is a column
 mw_wide <- survey_combined %>%
   select(Site, plot, Method, MW_density) %>%
   unite(plot_site, Site, plot, remove = FALSE) %>%
   pivot_wider(names_from = Method, values_from = MW_density)
 
-#Generate all pairwise method comparisons
-methods <- names(mw_wide)[!(names(mw_wide) %in% c("Site", "plot", "plot_site"))]
-pairs <- combn(methods, 2, simplify = FALSE)
+mw_wide$Site <- factor(
+  mw_wide$Site,
+  levels = unique(mw_wide$Site)
+)
+
+#Generate all pairwise method comparisons (IN ORDER)
+library(purrr)
+
+pairs_ordered <- purrr::map(
+  seq_along(method_levels),
+  function(i) {
+    if (i == length(method_levels)) return(NULL)
+    purrr::map(
+      method_levels[(i + 1):length(method_levels)],
+      ~ c(method_levels[i], .x)
+    )
+  }
+) %>%
+  purrr::compact() %>%
+  unlist(recursive = FALSE)
+
 
 #make plots for each method pair
 library(rlang)
 
-plots <- lapply(pairs, function(vars) {
+plots <- lapply(pairs_ordered, function(vars) {
   xvar <- vars[1]
   yvar <- vars[2]
   
@@ -1422,10 +1720,11 @@ get_lm_stats_safe <- function(df, xvar, yvar) {
   
   list(slope = slope, r2 = r2)
 }
+ # color palattes are being annoying. Let's force levels for site
 
 
 #Annotate each plot
-plots_annotated <- lapply(pairs, function(vars) {
+plots_annotated <- lapply(pairs_ordered, function(vars) {
   xvar <- vars[1]
   yvar <- vars[2]
   
@@ -1434,7 +1733,7 @@ plots_annotated <- lapply(pairs, function(vars) {
   r2 <- round(stats$r2, 2)
   
   ggplot(mw_wide, aes(x = .data[[xvar]], y = .data[[yvar]], color = Site)) +
-    geom_point(size = 2, alpha = 0.7) +
+    geom_point(size = 2, alpha = 1) +
     geom_smooth(method = "lm", color = "darkgrey", se = FALSE, lty="dotted") +
     theme_minimal() +
     scale_x_continuous(labels = function(x) x / 1000) +
@@ -1451,7 +1750,7 @@ plots_annotated <- lapply(pairs, function(vars) {
 })
 
 #pull out legend
-legend <- get_legend(
+legend1 <- get_legend(
   plots_annotated[[1]] + 
     theme(legend.position = "right",        # ensure it’s visible
           legend.text  = element_text(size = 10),
@@ -1464,23 +1763,64 @@ plots_a_noleg <- lapply(plots_annotated, function(p) p + theme(legend.position =
 
 #Combine the plots into a grid and add the legend as the last panel
 # Add an empty placeholder for legend
-legend_panel <- ggplot() + theme_void() + annotation_custom(legend)
+legend_panel1 <- ggplot() + theme_void() + annotation_custom(legend1)
 
 
 
 # Combine into grid with legend
 final_grid_annotated <- plot_grid(
-  plotlist = c(plots_a_noleg, list(legend_panel)),
-  ncol = 3,
+  plotlist = c(plots_a_noleg, list(legend_panel1)),
+  ncol = 4,
   align = "hv"
 )
 
 final_grid_annotated
 
 #save to pdf
-pdf("plots/estimatecorrelation_bymethod_mw.pdf", height=8, width=8)
+pdf("plots/estimatecorrelation_bymethod_mw.pdf", height=7, width=8)
 final_grid_annotated
 dev.off()
+
+#turn this into a table for data presentation
+method_levels <- c(
+  "Site al",
+  "Transect plot",
+  "Square plot",
+  "CCAA",
+  "Machine learning"
+)
+library(purrr)
+
+pairs_ordered <- purrr::map(
+  seq_along(method_levels),
+  function(i) {
+    if (i == length(method_levels)) return(NULL)
+    purrr::map(
+      method_levels[(i + 1):length(method_levels)],
+      ~ c(method_levels[i], .x)
+    )
+  }
+) %>%
+  purrr::compact() %>%
+  unlist(recursive = FALSE)
+
+
+
+comparison_table <- purrr::map_dfr(pairs_ordered, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(mw_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = stats$slope,
+    r2       = stats$r2,
+    n        = stats$n
+  )
+})
 
 
 ######################################################################
@@ -1627,6 +1967,56 @@ pdf("plots/estimatecorrelation_bymethod_floral.pdf", height=8, width=8)
 final_with_title
 dev.off()
 
+#make stats table
+
+# Pivot data for floral, excluding Site al
+floral_wide <- survey_combined %>%
+  filter(Method != "Site al") %>%              # remove Site al
+  select(Site, plot, Method, floral) %>%      # use floral response
+  unite(plot_site, Site, plot, remove = FALSE) %>%
+  pivot_wider(names_from = Method, values_from = floral)
+
+# define methods present (Site al already excluded)
+method_levels_floral <- c("Machine learning","Transect plot", "Square plot", "CCAA" )
+
+
+
+# Generate ordered pairs
+pairs_ordered_floral <- purrr::map(
+  seq_along(method_levels_floral),
+  function(i) {
+    if (i == length(method_levels_floral)) return(NULL)
+    purrr::map(
+      method_levels_floral[(i + 1):length(method_levels_floral)],
+      ~ c(method_levels_floral[i], .x)
+    )
+  }
+) %>% purrr::compact() %>% unlist(recursive = FALSE)
+
+# Compute slopes and R² for each pair
+comparison_table_floral <- purrr::map_dfr(pairs_ordered_floral, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(floral_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = round(stats$slope, 2),
+    r2       = round(stats$r2, 2),
+    n        = stats$n
+  )
+}) %>%
+  mutate(
+    Method_1 = factor(Method_1, levels = method_levels_floral),
+    Method_2 = factor(Method_2, levels = method_levels_floral)
+  ) %>%
+  arrange(Method_1, Method_2)
+
+
+
 #######
 #do woody
 
@@ -1767,6 +2157,53 @@ final_with_title
 pdf("plots/estimatecorrelation_bymethod_woody.pdf", height=8, width=8)
 final_with_title
 dev.off()
+
+
+# Pivot data for woody, excluding Site al
+woody_wide <- survey_combined %>%
+  filter(Method != "Site al") %>%              # remove Site al
+  select(Site, plot, Method, woody) %>%      # use woody response
+  unite(plot_site, Site, plot, remove = FALSE) %>%
+  pivot_wider(names_from = Method, values_from = woody)
+
+# define methods present (Site al already excluded)
+method_levels_woody <- c("Machine learning","Transect plot", "Square plot", "CCAA" )
+
+
+# Generate ordered pairs
+pairs_ordered_woody <- purrr::map(
+  seq_along(method_levels_woody),
+  function(i) {
+    if (i == length(method_levels_woody)) return(NULL)
+    purrr::map(
+      method_levels_woody[(i + 1):length(method_levels_woody)],
+      ~ c(method_levels_woody[i], .x)
+    )
+  }
+) %>% purrr::compact() %>% unlist(recursive = FALSE)
+
+# Compute slopes and R² for each pair
+comparison_table_woody <- purrr::map_dfr(pairs_ordered_woody, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(woody_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = round(stats$slope, 2),
+    r2       = round(stats$r2, 2),
+    n        = stats$n
+  )
+}) %>%
+  mutate(
+    Method_1 = factor(Method_1, levels = method_levels_woody),
+    Method_2 = factor(Method_2, levels = method_levels_woody)
+  ) %>%
+  arrange(Method_1, Method_2)
+
 
 
 #######
@@ -1910,6 +2347,54 @@ pdf("plots/estimatecorrelation_bymethod_grass.pdf", height=8, width=8)
 final_with_title
 dev.off()
 
+
+# Pivot data for grass, excluding Site al
+grass_wide <- survey_combined %>%
+  filter(Method != "Site al") %>%              # remove Site al
+  select(Site, plot, Method, grass) %>%      # use grass response
+  unite(plot_site, Site, plot, remove = FALSE) %>%
+  pivot_wider(names_from = Method, values_from = grass)
+
+# define methods present (Site al already excluded)
+method_levels_grass <- c("Machine learning","Transect plot", "Square plot", "CCAA" )
+
+
+
+# Generate ordered pairs
+pairs_ordered_grass <- purrr::map(
+  seq_along(method_levels_grass),
+  function(i) {
+    if (i == length(method_levels_grass)) return(NULL)
+    purrr::map(
+      method_levels_grass[(i + 1):length(method_levels_grass)],
+      ~ c(method_levels_grass[i], .x)
+    )
+  }
+) %>% purrr::compact() %>% unlist(recursive = FALSE)
+
+# Compute slopes and R² for each pair
+comparison_table_grass <- purrr::map_dfr(pairs_ordered_grass, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(grass_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = round(stats$slope, 2),
+    r2       = round(stats$r2, 2),
+    n        = stats$n
+  )
+}) %>%
+  mutate(
+    Method_1 = factor(Method_1, levels = method_levels_grass),
+    Method_2 = factor(Method_2, levels = method_levels_grass)
+  ) %>%
+  arrange(Method_1, Method_2)
+
+
 #######
 #do broadleaf
 
@@ -2050,6 +2535,51 @@ final_with_title
 pdf("plots/estimatecorrelation_bymethod_broadleaf.pdf", height=8, width=8)
 final_with_title
 dev.off()
+
+
+# Pivot data for broadleaf, excluding Site al
+broadleaf_wide <- survey_combined %>%
+  filter(Method != "Site al") %>%              # remove Site al
+  select(Site, plot, Method, broadleaf) %>%      # use broadleaf response
+  unite(plot_site, Site, plot, remove = FALSE) %>%
+  pivot_wider(names_from = Method, values_from = broadleaf)
+
+# define methods present (Site al already excluded)
+method_levels_broadleaf <-c("Machine learning", "Transect plot", "Square plot", "CCAA" )
+
+# Generate ordered pairs
+pairs_ordered_broadleaf <- purrr::map(
+  seq_along(method_levels_broadleaf),
+  function(i) {
+    if (i == length(method_levels_broadleaf)) return(NULL)
+    purrr::map(
+      method_levels_broadleaf[(i + 1):length(method_levels_broadleaf)],
+      ~ c(method_levels_broadleaf[i], .x)
+    )
+  }
+) %>% purrr::compact() %>% unlist(recursive = FALSE)
+
+# Compute slopes and R² for each pair
+comparison_table_broadleaf <- purrr::map_dfr(pairs_ordered_broadleaf, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(broadleaf_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = round(stats$slope, 2),
+    r2       = round(stats$r2, 2),
+    n        = stats$n
+  )
+}) %>%
+  mutate(
+    Method_1 = factor(Method_1, levels = method_levels_broadleaf),
+    Method_2 = factor(Method_2, levels = method_levels_broadleaf)
+  ) %>%
+  arrange(Method_1, Method_2)
 #######
 #do bare
 
@@ -2191,3 +2721,81 @@ pdf("plots/estimatecorrelation_bymethod_bare.pdf", height=8, width=8)
 final_with_title
 dev.off()
 
+# Pivot data for bare, excluding Site al
+bare_wide <- survey_combined %>%
+  filter(Method != "Site al") %>%              # remove Site al
+  select(Site, plot, Method, bare) %>%      # use bare response
+  unite(plot_site, Site, plot, remove = FALSE) %>%
+  pivot_wider(names_from = Method, values_from = bare)
+
+# define methods present (Site al already excluded)
+method_levels_bare <- c("Machine learning","Transect plot", "Square plot", "CCAA" )
+
+
+
+# Generate ordered pairs
+pairs_ordered_bare <- purrr::map(
+  seq_along(method_levels_bare),
+  function(i) {
+    if (i == length(method_levels_bare)) return(NULL)
+    purrr::map(
+      method_levels_bare[(i + 1):length(method_levels_bare)],
+      ~ c(method_levels_bare[i], .x)
+    )
+  }
+) %>% purrr::compact() %>% unlist(recursive = FALSE)
+
+# Compute slopes and R² for each pair
+comparison_table_bare <- purrr::map_dfr(pairs_ordered_bare, function(vars) {
+  
+  xvar <- vars[1]
+  yvar <- vars[2]
+  
+  stats <- get_lm_stats_safe(bare_wide, xvar, yvar)
+  
+  tibble(
+    Method_1 = xvar,
+    Method_2 = yvar,
+    slope    = round(stats$slope, 2),
+    r2       = round(stats$r2, 2),
+    n        = stats$n
+  )
+}) %>%
+  mutate(
+    Method_1 = factor(Method_1, levels = method_levels_bare),
+    Method_2 = factor(Method_2, levels = method_levels_bare)
+  ) %>%
+  arrange(Method_1, Method_2)
+
+
+#################
+#Bring stats together in a table
+library(dplyr)
+
+# order floral, woody, grass, broadleaf, bare
+
+
+# First, rename slope and r2 in each table to include the groundcover type
+floral_tbl     <- comparison_table_floral     %>% rename(slope_floral = slope, r2_floral = r2)
+woody_tbl      <- comparison_table_woody      %>% rename(slope_woody  = slope, r2_woody  = r2)
+grass_tbl      <- comparison_table_grass      %>% rename(slope_grass  = slope, r2_grass  = r2)
+broadleaf_tbl  <- comparison_table_broadleaf  %>% rename(slope_broadleaf = slope, r2_broadleaf = r2)
+bare_tbl       <- comparison_table_bare       %>% rename(slope_bare = slope, r2_bare = r2)
+
+# Combine all tables by Method_1 and Method_2
+combined_table_groundcover <- floral_tbl %>%
+  select(Method_1, Method_2, slope_floral, r2_floral) %>%
+  left_join(woody_tbl     %>% select(Method_1, Method_2, slope_woody, r2_woody),
+            by = c("Method_1", "Method_2")) %>%
+  left_join(grass_tbl     %>% select(Method_1, Method_2, slope_grass, r2_grass),
+            by = c("Method_1", "Method_2")) %>%
+  left_join(broadleaf_tbl %>% select(Method_1, Method_2, slope_broadleaf, r2_broadleaf),
+            by = c("Method_1", "Method_2")) %>%
+  left_join(bare_tbl      %>% select(Method_1, Method_2, slope_bare, r2_bare),
+            by = c("Method_1", "Method_2"))
+
+#write it to export
+
+write.csv(combined_table_groundcover, 
+          file = "plots/comparison_table_all_groundcover.csv", 
+          row.names = FALSE)
